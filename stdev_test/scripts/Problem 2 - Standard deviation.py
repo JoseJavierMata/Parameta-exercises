@@ -35,7 +35,6 @@ class RollingStDev:
                                   end_time: str = "2021-11-23 09:00:00") -> pd.DataFrame:
         """
         Calculate rolling std for ALL hours between start and end time.
-        Uses vectorized operations for maximum performance.
         """
         start_dt = pd.to_datetime(start_time)
         end_dt = pd.to_datetime(end_time)
@@ -51,7 +50,6 @@ class RollingStDev:
         print(f"Total securities: {len(security_ids)}")
         
         # Create complete grid of all combinations (security_id, snap_time, price_type)
-        # This is the key to ensuring ALL hours are in the output
         complete_index = pd.MultiIndex.from_product([
             security_ids,
             all_hours,
@@ -62,7 +60,7 @@ class RollingStDev:
         complete_df = pd.DataFrame(index=complete_index).reset_index()
         complete_df['rolling_std'] = np.nan
         
-        # Now calculate rolling stds using the original efficient method
+        # Now calculate rolling stds
         lookback_start = start_dt - timedelta(days=7)
         calc_df = df[df['snap_time'] >= lookback_start].copy()
         
@@ -117,8 +115,6 @@ class RollingStDev:
         if result_data:
             calculated_df = pd.DataFrame(result_data)
             
-            # Merge calculated values with complete grid
-            # This is the key operation - it's vectorized and very fast
             complete_df = complete_df.merge(
                 calculated_df,
                 on=['security_id', 'snap_time', 'price_type'],
@@ -130,7 +126,6 @@ class RollingStDev:
             complete_df['rolling_std'] = complete_df['rolling_std'].fillna(complete_df['rolling_std_drop'])
             complete_df = complete_df.drop(columns=['rolling_std_drop'])
         
-        # Sort final results
         complete_df = complete_df.sort_values(['security_id', 'snap_time', 'price_type'])
         
         # # Print summary statistics
@@ -163,15 +158,12 @@ def main():
     """Main execution function optimized for maximum speed."""
     start_time = datetime.now()
     
-    # Get the project root directory (parent of scripts directory)
     script_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(script_dir)
     
-    # Set up file paths
     data_dir = os.path.join(project_root, 'data')
     results_dir = os.path.join(project_root, 'results')
     
-    # Ensure results directory exists
     os.makedirs(results_dir, exist_ok=True)
     
     # Initialize calculator
